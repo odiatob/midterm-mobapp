@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  TextInput, // Added TextInput for search bar
 } from 'react-native';
 import axios from 'axios';
 import uuid from 'react-native-uuid';
@@ -29,6 +30,8 @@ const JobFinderScreen: React.FC = () => {
   const navigation = useNavigation();
 
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]); // Filtered jobs state
+  const [searchQuery, setSearchQuery] = useState<string>(''); // Search input state
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,6 +48,7 @@ const JobFinderScreen: React.FC = () => {
         id: uuid.v4() as string,
       }));
       setJobs(jobsWithIds);
+      setFilteredJobs(jobsWithIds); // Initialize filteredJobs
       setLoading(false);
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -57,10 +61,22 @@ const JobFinderScreen: React.FC = () => {
     fetchJobs();
   }, []);
 
+  // Filter jobs based on search query
+  useEffect(() => {
+    if (searchQuery === '') {
+      setFilteredJobs(jobs);
+    } else {
+      const filtered = jobs.filter((job) =>
+        job.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredJobs(filtered);
+    }
+  }, [searchQuery, jobs]);
+
   // Pull-to-Refresh Function
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchJobs(); // Fetch latest jobs
+    await fetchJobs();
     setRefreshing(false);
   };
 
@@ -106,12 +122,28 @@ const JobFinderScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <TextInput
+        style={{
+          height: 40,
+          borderColor: '#ccc',
+          borderWidth: 1,
+          borderRadius: 8,
+          marginBottom: 10,
+          paddingLeft: 10,
+          color: isDarkMode ? 'white' : 'black',
+          backgroundColor: isDarkMode ? '#333' : '#fff',
+        }}
+        placeholder="Search for a job..."
+        placeholderTextColor={isDarkMode ? '#bbb' : '#666'}
+        value={searchQuery}
+        onChangeText={(text) => setSearchQuery(text)}
+      />
+
       <FlatList
-        data={jobs}
+        data={filteredJobs} // Use filteredJobs instead of jobs
         keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         renderItem={({ item }) => (
           <View style={styles.jobCard}>
             <Text
@@ -142,11 +174,11 @@ const JobFinderScreen: React.FC = () => {
                 {
                   backgroundColor: savedJobs.some((savedJob) => savedJob.id === item.id)
                     ? isDarkMode
-                      ? '#d32f2f' // Dark mode - Saved (Red)
-                      : '#4CAF50' // Light mode - Saved (Green)
+                      ? '#d32f2f'
+                      : '#4CAF50'
                     : isDarkMode
-                    ? '#1976d2' // Dark mode - Not saved (Blue)
-                    : '#ff9800', // Light mode - Not saved (Orange)
+                    ? '#1976d2'
+                    : '#ff9800',
                   borderColor: isDarkMode ? '#555' : '#ddd',
                   marginTop: 10,
                 },
